@@ -440,6 +440,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   .ta { display: none; }
 }
 /* END MOBILE STYLES */
+.exportbtn{flex:1;padding:6px;border-radius:5px;cursor:pointer;font-size:9px;font-family:"Geist Mono",monospace;border:1px solid var(--bd);background:transparent;color:var(--tx3);transition:all .15s}.exportbtn:hover{border-color:var(--bd2);color:var(--tx2)}
 </style>
 </head>
 <body>
@@ -502,6 +503,36 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     <div id="mlist"></div>
   </div>
 </main>
+</div>
+
+<div class="ov" id="nt-ov">
+  <div class="modal" style="width:480px">
+    <div class="mt">+ New Task</div>
+    <div class="ms">Add a task manually</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+      <div><div class="mfl">TITLE</div><input class="mfi" id="nt-title" placeholder="What needs to be done?" style="font-size:13px"></div>
+      <div class="mg" style="margin-bottom:0">
+        <div><div class="mfl">PRIORITY</div>
+          <select class="mfs" id="nt-priority">
+            <option value="critical">Critical</option>
+            <option value="high" selected>High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div><div class="mfl">DUE DATE</div><input class="mfi" type="date" id="nt-due"></div>
+      </div>
+      <div class="mg" style="margin-bottom:0">
+        <div><div class="mfl">ESTIMATED TIME</div><input class="mfi" id="nt-time" placeholder="e.g. 1h 30m"></div>
+        <div><div class="mfl">ASSIGNED BY</div><input class="mfi" id="nt-by" placeholder="e.g. Daniel"></div>
+      </div>
+      <div><div class="mfl">DESCRIPTION</div><textarea class="mta" id="nt-desc" placeholder="What needs to happen?" style="min-height:70px"></textarea></div>
+    </div>
+    <div class="mac">
+      <button class="mb mb-g" onclick="closeNewTask()">Cancel</button>
+      <button class="mb mb-p" onclick="submitNewTask()">Add Task</button>
+    </div>
+  </div>
 </div>
 <div class="ov" id="ov">
   <div class="modal">
@@ -1003,6 +1034,46 @@ function normDeadlines(){
 function parseM(s){if(!s)return 0;s=String(s).toLowerCase().trim();var hm=s.match(/(\d+(?:\.\d+)?)\s*h/),mm=s.match(/(\d+)\s*m/),m=0;if(hm)m+=parseFloat(hm[1])*60;if(mm)m+=parseInt(mm[1]);if(!hm&&!mm){var n=parseFloat(s);if(!isNaN(n))m=n<10?n*60:n;}return m;}
 function fmtM(m){if(!m)return '\u2014';if(m<60)return Math.round(m)+'m';var h=Math.floor(m/60),r=Math.round(m%60);return r?(h+'h '+r+'m'):(h+'h');}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on');},2400);}
+
+function closeNewTask(){document.getElementById('nt-ov').classList.remove('on');}
+function submitNewTask(){
+  var title=document.getElementById('nt-title').value.trim();
+  if(!title){document.getElementById('nt-title').style.borderColor='var(--crit)';return;}
+  var dueVal=document.getElementById('nt-due').value;
+  var deadline='';
+  if(dueVal){var d=new Date(dueVal+'T12:00:00');deadline=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
+  var t={
+    id:'manual-'+Date.now(),title:title,
+    description:document.getElementById('nt-desc').value.trim(),
+    priority:document.getElementById('nt-priority').value,
+    estimatedTime:document.getElementById('nt-time').value.trim(),
+    estimatedMinutes:parseM(document.getElementById('nt-time').value),
+    assignedBy:document.getElementById('nt-by').value.trim()||'Self',
+    dueDate:dueVal,deadline:deadline,
+    meetingTitle:'Manual entry',
+    meetingDate:new Date().toISOString().split('T')[0],
+    addedAt:Date.now()
+  };
+  A.unshift(t);markDirty();renderTasks();closeNewTask();showToast('Task added');
+}
+
+function exportState(){
+  var data=JSON.stringify({a:localStorage.getItem(KA),c:localStorage.getItem(KC)});
+  navigator.clipboard.writeText(data).then(function(){showToast('State copied to clipboard');}).catch(function(){
+    var ta=document.createElement('textarea');ta.value=data;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('State copied to clipboard');
+  });
+}
+function importState(){
+  var s=prompt('Paste exported state:');
+  if(!s)return;
+  try{
+    var d=JSON.parse(s);
+    if(d.a)localStorage.setItem(KA,d.a);
+    if(d.c)localStorage.setItem(KC,d.c);
+    showToast('Imported — reloading...');
+    setTimeout(function(){location.reload();},800);
+  }catch(e){showToast('Invalid state data');}
+}
 
 (function(){
   var hr=new Date().getHours();
