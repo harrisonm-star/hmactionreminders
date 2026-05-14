@@ -441,6 +441,8 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 }
 /* END MOBILE STYLES */
 .exportbtn{flex:1;padding:6px;border-radius:5px;cursor:pointer;font-size:9px;font-family:"Geist Mono",monospace;border:1px solid var(--bd);background:transparent;color:var(--tx3);transition:all .15s}.exportbtn:hover{border-color:var(--bd2);color:var(--tx2)}
+.newtaskbtn{width:100%;padding:8px;border-radius:6px;cursor:pointer;font-size:10px;font-family:"Geist Mono",monospace;font-weight:600;letter-spacing:.3px;border:1px solid rgba(110,86,207,.35);background:rgba(110,86,207,.1);color:rgba(110,86,207,.9);transition:all .15s;margin-bottom:10px;display:block}
+.newtaskbtn:hover{background:rgba(110,86,207,.2);border-color:rgba(110,86,207,.5)}
 </style>
 </head>
 <body>
@@ -465,6 +467,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   <div class="ni" id="ni-analytics" onclick="go('analytics')"><span class="ni-icon">&#9678;</span><span class="ni-lbl">Analytics</span></div>
   <div class="ni" id="ni-meetings" onclick="go('meetings')"><span class="ni-icon">&#127897;</span><span class="ni-lbl">By Meeting</span></div>
   <div class="sbf">
+    <button class="newtaskbtn" onclick="openNewTask()">+ New Task</button>
     <div class="sdr"><div class="sdot" id="sdot"></div><span id="slbl">All saved</span></div>
   </div>
 </nav>
