@@ -469,6 +469,20 @@ function getFiltered(){
     });
   } else if(srt==='time'){
     t.sort(function(a,b){return (b.estimatedMinutes||0)-(a.estimatedMinutes||0);});
+  } else if(srt==='deadline'){
+    t.sort(function(a,b){
+      function rank(task){
+        var dl=task.deadline||'';
+        if(/overdue/i.test(dl))return 0;
+        if(/asap/i.test(dl))return 1;
+        if(task.dueDate){var d=new Date(task.dueDate+'T12:00:00');if(!isNaN(d.getTime()))return d.getTime();}
+        var paren=dl.match(/\((?:by\s+|~end\s+)?([^)]+)\)/i);
+        if(paren){var d2=new Date(paren[1]+' 2026');if(!isNaN(d2.getTime()))return d2.getTime();}
+        var d3=new Date(dl);if(!isNaN(d3.getTime()))return d3.getTime();
+        return 9999999999999;
+      }
+      return rank(a)-rank(b);
+    });
   } else if(srt==='date'){
     t.sort(function(a,b){return new Date(b.meetingDate||0)-new Date(a.meetingDate||0);});
   }
@@ -511,7 +525,7 @@ function renderFilterBar(){
 
   var sel=document.createElement('select');
   sel.className='fso';sel.style.marginLeft='auto';
-  var opts=[['priority','Priority'],['time','Est. Time'],['date','Meeting Date']];
+  var opts=[['priority','Priority'],['time','Est. Time'],['deadline','Deadline'],['date','Meeting Date']];
   for(var i=0;i<opts.length;i++){
     var o=document.createElement('option');o.value=opts[i][0];o.textContent=opts[i][1];
     if(srt===opts[i][0])o.selected=true;
@@ -557,7 +571,7 @@ function buildCard(t){
   if(t.description)h+='<div class="sl">WHAT TO DO</div><div class="desc">'+esc(t.description)+'</div>';
   if(hasDep)h+='<div class="sl">DEPENDENCIES</div><div class="desc" style="color:rgba(245,197,24,.7)">'+esc(t.dependencies)+'</div>';
   if(steps)h+='<div class="sl">SUGGESTED APPROACH</div><div class="steps">'+steps+'</div>';
-  h+='<div class="ep"><div class="epg">';
+  h+='<div class="ep"><div class="ef" style="margin-bottom:9px"><div class="el">TITLE</div><input class="ei ei-title" value="'+esc(t.title)+'" style="font-size:12.5px"></div><div class="epg">';
   h+='<div class="ef"><div class="el">ESTIMATED TIME</div><input class="ei ei-e" value="'+esc(t.estimatedTime||'')+'" placeholder="e.g. 1h 30m"></div>';
   h+='<div class="ef"><div class="el">DUE DATE</div><input class="ei ei-d" type="date" value="'+esc(t.dueDate||'')+'"></div>';
   h+='<div class="ef"><div class="el">PRIORITY</div><select class="esel ei-p">'+priOpts+'</select></div>';
@@ -608,6 +622,7 @@ function saveEdits(id){
   var dEl=card.querySelector('.ei-d');
   var pEl=card.querySelector('.ei-p');
   var bEl=card.querySelector('.ei-b');
+  if(tEl&&tEl.value.trim())t.title=tEl.value.trim();
   if(eEl){t.estimatedTime=eEl.value.trim();t.estimatedMinutes=parseM(eEl.value);}
   if(dEl){
     t.dueDate=dEl.value;
@@ -912,6 +927,59 @@ function showToast(msg){
 }
 
 /* BOOT */
+function openNewTask(){
+  var tmr=new Date();tmr.setDate(tmr.getDate()+7);
+  document.getElementById('nt-due').value=tmr.toISOString().split('T')[0];
+  document.getElementById('nt-title').value='';
+  document.getElementById('nt-desc').value='';
+  document.getElementById('nt-time').value='';
+  document.getElementById('nt-by').value='';
+  document.getElementById('nt-priority').value='high';
+  document.getElementById('nt-ov').classList.add('on');
+  setTimeout(function(){document.getElementById('nt-title').focus();},100);
+}
+function closeNewTask(){document.getElementById('nt-ov').classList.remove('on');}
+function submitNewTask(){
+  var title=document.getElementById('nt-title').value.trim();
+  if(!title){document.getElementById('nt-title').style.borderColor='var(--crit)';return;}
+  var dueVal=document.getElementById('nt-due').value;
+  var deadline='';
+  if(dueVal){var d=new Date(dueVal+'T12:00:00');deadline=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
+  var t={
+    id:'manual-'+Date.now(),
+    title:title,
+    description:document.getElementById('nt-desc').value.trim(),
+    priority:document.getElementById('nt-priority').value,
+    estimatedTime:document.getElementById('nt-time').value.trim(),
+    estimatedMinutes:parseM(document.getElementById('nt-time').value),
+    assignedBy:document.getElementById('nt-by').value.trim()||'Self',
+    dueDate:dueVal,
+    deadline:deadline,
+    meetingTitle:'Manual entry',
+    meetingDate:new Date().toISOString().split('T')[0],
+    addedAt:Date.now()
+  };
+  A.unshift(t);markDirty();renderTasks();closeNewTask();showToast('Task added');
+}
+
+function quickComplete(id){
+  var idx=-1;for(var i=0;i<A.length;i++){if(A[i].id===id){idx=i;break;}}if(idx===-1)return;
+  var task=JSON.parse(JSON.stringify(A[idx]));
+  task.completedAt=Date.now();task.actualMinutes=null;
+  A.splice(idx,1);C.unshift(task);markDirty();
+  var card=document.getElementById('card-'+id);
+  if(card){card.style.transition='opacity .25s';card.style.opacity='0';setTimeout(function(){renderTasks();showToast('Done ✓');},250);}
+  else{renderTasks();showToast('Done ✓');}
+}
+
+function uncomplete(id){
+  var idx=-1;for(var i=0;i<C.length;i++){if(C[i].id===id){idx=i;break;}}if(idx===-1)return;
+  var task=JSON.parse(JSON.stringify(C[idx]));
+  delete task.completedAt;delete task.actualMinutes;delete task.accuracyPct;
+  C.splice(idx,1);A.push(task);markDirty();
+  renderCompleted();renderTasks();showToast('Moved back to active');
+}
+
 function openNewTask(){
   var tmr=new Date();tmr.setDate(tmr.getDate()+7);
   document.getElementById('nt-due').value=tmr.toISOString().split('T')[0];
