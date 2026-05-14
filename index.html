@@ -576,15 +576,8 @@ var A=(function(){
 
 var _saveTimer=null;
 function markDirty(){
-  var dot=document.getElementById('sdot'),lbl=document.getElementById('slbl');
-  if(dot)dot.className='sdot dirty';
-  if(lbl)lbl.textContent='Unsaved';
-  clearTimeout(_saveTimer);
-  _saveTimer=setTimeout(function(){
-    ls(KA,A);ls(KC,C);
-    if(dot)dot.className='sdot';
-    if(lbl)lbl.textContent='All saved';
-  },900);
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(saveToGitHub,1500);
 }
 
 function go(n){
@@ -1035,6 +1028,69 @@ function parseM(s){if(!s)return 0;s=String(s).toLowerCase().trim();var hm=s.matc
 function fmtM(m){if(!m)return '\u2014';if(m<60)return Math.round(m)+'m';var h=Math.floor(m/60),r=Math.round(m%60);return r?(h+'h '+r+'m'):(h+'h');}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on');},2400);}
 
+var GH_TOKEN=localStorage.getItem('gh_token')||'';
+var GH_REPO='harrisonm-star/hmactionreminders';
+var GH_STATE_PATH='state.json';
+var _syncTimer=null;
+
+function saveToGitHub(){
+  var state=JSON.stringify({a:A,c:C},null,0);
+  var dot=document.getElementById('sdot'),lbl=document.getElementById('slbl');
+  if(dot)dot.className='sdot dirty';
+  if(lbl)lbl.textContent='Saving...';
+  var url='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_STATE_PATH;
+  fetch(url,{headers:{'Authorization':'Bearer '+GH_TOKEN,'Accept':'application/vnd.github+json'}})
+  .then(function(r){return r.json();})
+  .then(function(meta){
+    var content=btoa(unescape(encodeURIComponent(state)));
+    return fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+GH_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github+json'},
+      body:JSON.stringify({message:'state: autosave',content:content,sha:meta.sha})});
+  })
+  .then(function(){
+    if(dot)dot.className='sdot';
+    if(lbl)lbl.textContent='All saved';
+    ls(KA,A);ls(KC,C);
+  })
+  .catch(function(e){
+    console.warn('GitHub save failed, using localStorage',e);
+    ls(KA,A);ls(KC,C);
+    if(dot)dot.className='sdot';
+    if(lbl)lbl.textContent='Saved locally';
+  });
+}
+
+function loadFromGitHub(cb){
+  var url='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_STATE_PATH;
+  fetch(url,{headers:{'Authorization':'Bearer '+GH_TOKEN,'Accept':'application/vnd.github+json'}})
+  .then(function(r){return r.json();})
+  .then(function(meta){
+    var decoded=decodeURIComponent(escape(atob(meta.content.replace(/\n/g,''))));
+    var state=JSON.parse(decoded);
+    if(state.a&&state.a.length){
+      A=state.a;
+      var doneIds={};for(var i=0;i<A.length;i++)doneIds[A[i].id]=true;
+    }
+    if(state.c)C=state.c;
+    cb();
+  })
+  .catch(function(e){
+    console.warn('GitHub load failed, using seed/localStorage',e);
+    cb();
+  });
+}
+
+function openNewTask(){
+  var tmr=new Date();tmr.setDate(tmr.getDate()+7);
+  document.getElementById('nt-due').value=tmr.toISOString().split('T')[0];
+  document.getElementById('nt-title').value='';
+  document.getElementById('nt-desc').value='';
+  document.getElementById('nt-time').value='';
+  document.getElementById('nt-by').value='';
+  document.getElementById('nt-priority').value='high';
+  document.getElementById('nt-ov').classList.add('on');
+  setTimeout(function(){document.getElementById('nt-title').focus();},100);
+}
+
 function closeNewTask(){document.getElementById('nt-ov').classList.remove('on');}
 function submitNewTask(){
   var title=document.getElementById('nt-title').value.trim();
@@ -1081,7 +1137,15 @@ function importState(){
   document.getElementById('dline').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   normDeadlines();
   initListeners();
-  renderTasks();
+  if(!localStorage.getItem('gh_token')){
+    var t=prompt('Enter your GitHub token to enable cross-device sync (stored locally only):');
+    if(t){localStorage.setItem('gh_token',t.trim());GH_TOKEN=t.trim();}
+  }
+  loadFromGitHub(function(){
+    normDeadlines();
+    renderTasks();
+  });
+  /* REPLACED_BOOT */
 })();
 </script>
 
