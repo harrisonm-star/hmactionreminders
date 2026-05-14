@@ -438,6 +438,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 
   /* ── Completed accuracy hidden on mobile (too cramped) ── */
   .ta { display: none; }
+  .ei[type=date], .mfi[type=date] { width: 100% !important; max-width: 100% !important; }
 }
 /* END MOBILE STYLES */
 .exportbtn{flex:1;padding:6px;border-radius:5px;cursor:pointer;font-size:9px;font-family:"Geist Mono",monospace;border:1px solid var(--bd);background:transparent;color:var(--tx3);transition:all .15s}.exportbtn:hover{border-color:var(--bd2);color:var(--tx2)}
@@ -796,7 +797,7 @@ function buildCard(t){
   h+='<div class="crow">';
   h+='<span class="tl">Actual time:</span>';
   h+='<input class="ti ti-act" placeholder="45m">';
-  h+='<a class="askbtn" href="'+claudeUrl+'" target="_blank" onclick="event.stopPropagation()">&#9656; Ask Claude</a>';
+  h+='<a class="askbtn" href="'+claudeUrl+'" target="_blank" onclick="event.stopPropagation();if(window.innerWidth<=900||window.navigator.standalone){event.preventDefault();showClaudePrompt(\''+ t.id +'\')}">&#9656; Ask Claude</a>';
   h+='<button class="calbtn" data-action="cal">&#128197;</button>';
   h+='<div class="sp"></div>';
   h+='<button class="cbtn" data-action="comp">&#10003; Mark Complete</button>';
