@@ -962,6 +962,32 @@ function submitNewTask(){
   A.unshift(t);markDirty();renderTasks();closeNewTask();showToast('Task added');
 }
 
+function buildClaudeUrl(t){
+  var ctx='I need to action the following task from a recent meeting:\n\n';
+  ctx+='TASK: '+t.title+'\n';
+  ctx+='PRIORITY: '+t.priority+'\n';
+  ctx+='DEADLINE: '+(t.deadline||'Not set')+'\n';
+  ctx+='EST. TIME: '+(t.estimatedTime||'Not set')+'\n';
+  ctx+='ASSIGNED BY: '+(t.assignedBy||'Not set')+'\n';
+  ctx+='SOURCE MEETING: '+(t.meetingTitle||'Not set')+' ('+(t.meetingDate||'')+')'+'\n\n';
+  if(t.meetingContext)ctx+='MEETING CONTEXT:\n\"'+t.meetingContext+'\"\n\n';
+  if(t.description)ctx+='WHAT NEEDS TO BE DONE:\n'+t.description+'\n\n';
+  if(t.dependencies&&!/^(none|n\/a)$/i.test(t.dependencies))ctx+='DEPENDENCIES: '+t.dependencies+'\n\n';
+  if(t.suggestedApproach&&t.suggestedApproach.length){
+    ctx+='SUGGESTED APPROACH:\n';
+    for(var i=0;i<t.suggestedApproach.length;i++)ctx+=(i+1)+'. '+t.suggestedApproach[i]+'\n';
+    ctx+='\n';
+  }
+  ctx+='Please help me work through this task. ';
+  if(t.meetingTitle){
+    ctx+='You have access to the Zoom connector — please search for the meeting called \"'+t.meetingTitle+'\"';
+    if(t.meetingDate){ctx+=' from '+t.meetingDate;}
+    ctx+=' and read the full transcript for additional context before we start. ';
+  }
+  ctx+='Then help me produce the output or draft needed to complete it.';
+  return 'https://claude.ai/new?q='+encodeURIComponent(ctx);
+}
+
 function quickComplete(id){
   var idx=-1;for(var i=0;i<A.length;i++){if(A[i].id===id){idx=i;break;}}if(idx===-1)return;
   var task=JSON.parse(JSON.stringify(A[idx]));
