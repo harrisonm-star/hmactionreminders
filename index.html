@@ -1387,6 +1387,7 @@ function isSnoozed(t){
   if(!t.snoozedUntil)return false;
   return new Date(t.snoozedUntil).getTime() > Date.now();
 }
+var SNOOZE_DISMISS_HANDLER=null;
 function showSnoozeMenu(id, btn){
   hideSnoozeMenu();
   CURRENT_SNOOZE_ID=id;
@@ -1398,7 +1399,7 @@ function showSnoozeMenu(id, btn){
   if(unsnoozeBtn)unsnoozeBtn.style.display=(t&&isSnoozed(t))?'block':'none';
   /* Position relative to button */
   var r=btn.getBoundingClientRect();
-  var menuW=150,menuH=200;
+  var menuW=160,menuH=220;
   var vw=window.innerWidth,vh=window.innerHeight;
   var left=r.right-menuW;
   var top=r.bottom+6;
@@ -1409,17 +1410,28 @@ function showSnoozeMenu(id, btn){
   menu.style.top=top+'px';
   menu.style.left=left+'px';
   menu.classList.add('on');
+  /* Install dismiss handler on next tick so it doesn't catch this click */
   setTimeout(function(){
-    document.addEventListener('click', hideSnoozeMenuOnce, {once:true});
-  }, 50);
+    SNOOZE_DISMISS_HANDLER=function(ev){
+      /* Bail if click is inside the menu — let menu's own handler take over */
+      if(ev&&ev.target&&ev.target.closest&&ev.target.closest('#snooze-menu'))return;
+      hideSnoozeMenu();
+    };
+    document.addEventListener('mousedown', SNOOZE_DISMISS_HANDLER);
+    document.addEventListener('touchstart', SNOOZE_DISMISS_HANDLER);
+  }, 0);
 }
 function hideSnoozeMenu(){
   var menu=document.getElementById('snooze-menu');
   if(menu)menu.classList.remove('on');
   CURRENT_SNOOZE_ID=null;
+  if(SNOOZE_DISMISS_HANDLER){
+    document.removeEventListener('mousedown', SNOOZE_DISMISS_HANDLER);
+    document.removeEventListener('touchstart', SNOOZE_DISMISS_HANDLER);
+    SNOOZE_DISMISS_HANDLER=null;
+  }
 }
 function hideSnoozeMenuOnce(ev){
-  /* Don't close if click was inside the menu */
   if(ev&&ev.target&&ev.target.closest&&ev.target.closest('#snooze-menu'))return;
   hideSnoozeMenu();
 }
