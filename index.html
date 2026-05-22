@@ -1388,6 +1388,12 @@ function isSnoozed(t){
   return new Date(t.snoozedUntil).getTime() > Date.now();
 }
 var SNOOZE_DISMISS_HANDLER=null;
+
+function handleSnoozeClick(days){
+  if(!CURRENT_SNOOZE_ID){hideSnoozeMenu();return;}
+  snoozeTask(CURRENT_SNOOZE_ID, days);
+}
+
 function showSnoozeMenu(id, btn){
   hideSnoozeMenu();
   CURRENT_SNOOZE_ID=id;
@@ -1413,12 +1419,20 @@ function showSnoozeMenu(id, btn){
   /* Install dismiss handler on next tick so it doesn't catch this click */
   setTimeout(function(){
     SNOOZE_DISMISS_HANDLER=function(ev){
-      /* Bail if click is inside the menu — let menu's own handler take over */
-      if(ev&&ev.target&&ev.target.closest&&ev.target.closest('#snooze-menu'))return;
+      /* Bail if click/touch is inside menu — use composedPath for robust check */
+      var t=ev&&ev.target;
+      if(t){
+        /* Walk up the DOM looking for snooze-menu */
+        var n=t;
+        while(n){
+          if(n.id==='snooze-menu')return;
+          n=n.parentNode||n.host;
+        }
+      }
       hideSnoozeMenu();
     };
     document.addEventListener('mousedown', SNOOZE_DISMISS_HANDLER);
-    document.addEventListener('touchstart', SNOOZE_DISMISS_HANDLER);
+    document.addEventListener('touchstart', SNOOZE_DISMISS_HANDLER, {passive:true});
   }, 0);
 }
 function hideSnoozeMenu(){
@@ -1435,18 +1449,7 @@ function hideSnoozeMenuOnce(ev){
   if(ev&&ev.target&&ev.target.closest&&ev.target.closest('#snooze-menu'))return;
   hideSnoozeMenu();
 }
-function initSnoozeMenu(){
-  var menu=document.getElementById('snooze-menu');
-  if(!menu)return;
-  menu.addEventListener('click', function(ev){
-    var btn=ev.target.closest('button[data-days]');
-    if(!btn)return;
-    ev.stopPropagation();
-    if(CURRENT_SNOOZE_ID){
-      snoozeTask(CURRENT_SNOOZE_ID, parseInt(btn.getAttribute('data-days'),10));
-    }
-  });
-}
+function initSnoozeMenu(){ /* no-op now, kept for boot compat */ }
 /* Backward compat alias for any stale handlers */
 function hideSnoozeMenus(){ hideSnoozeMenu(); }
 function hideSnoozeMenusOnce(){ hideSnoozeMenu(); }
@@ -1586,12 +1589,12 @@ function initGlobalShortcuts(){
 
 
 <!-- v4: Single snooze menu, positioned dynamically -->
-<div class="snoozemenu" id="snooze-menu">
-  <button data-days="3">3 days</button>
-  <button data-days="7">Next week</button>
-  <button data-days="14">2 weeks</button>
-  <button data-days="30">Next month</button>
-  <button data-days="0" class="snoozemenu-unsnooze">Unsnooze</button>
+<div class="snoozemenu" id="snooze-menu" onclick="event.stopPropagation()">
+  <button type="button" onmousedown="event.preventDefault()" onclick="event.stopPropagation();handleSnoozeClick(3)">3 days</button>
+  <button type="button" onmousedown="event.preventDefault()" onclick="event.stopPropagation();handleSnoozeClick(7)">Next week</button>
+  <button type="button" onmousedown="event.preventDefault()" onclick="event.stopPropagation();handleSnoozeClick(14)">2 weeks</button>
+  <button type="button" onmousedown="event.preventDefault()" onclick="event.stopPropagation();handleSnoozeClick(30)">Next month</button>
+  <button type="button" class="snoozemenu-unsnooze" onmousedown="event.preventDefault()" onclick="event.stopPropagation();handleSnoozeClick(0)">Unsnooze</button>
 </div>
 
 <!-- v4: Search overlay (Cmd+K / press / to open) -->
