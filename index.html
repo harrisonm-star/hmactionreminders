@@ -453,12 +453,9 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 .fb{flex:1;min-width:0;display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;margin-bottom:0}
 .fb::-webkit-scrollbar{display:none}
 #sort-wrap{flex-shrink:0}
-.mtitle-row{display:flex;align-items:center;gap:10px;margin:8px 0 14px;padding:6px 10px;background:rgba(110,86,207,.05);border:1px solid rgba(110,86,207,.12);border-radius:6px;flex-wrap:wrap}
-.mtitle-label{font-size:9px;font-weight:600;letter-spacing:1.2px;color:var(--tx3);font-family:"Geist Mono",monospace;flex-shrink:0}
-.mtitle-val{flex:1;font-size:13px;color:var(--tx);min-width:0;padding:2px 6px;border-radius:4px;cursor:text;transition:background .15s}
-.mtitle-val:hover{background:rgba(255,255,255,.04)}
-.mtitle-val:focus{outline:none;background:rgba(110,86,207,.12);box-shadow:0 0 0 1px rgba(110,86,207,.4)}
-.mtitle-date{font-size:11px;color:var(--tx3);font-family:"Geist Mono",monospace;flex-shrink:0}
+.ct{cursor:text}
+.ct:hover{background:rgba(255,255,255,.03);border-radius:4px}
+.ct:focus{outline:none;background:rgba(110,86,207,.1);border-radius:4px;box-shadow:0 0 0 1px rgba(110,86,207,.35);padding:2px 6px;margin:-2px -6px}
 </style>
 </head>
 <body>
@@ -752,7 +749,7 @@ function buildCard(t){
   h+='<div class="ch" data-action="tog">';
   h+='<div class="cpb" style="background:'+pc+'"></div>';
   h+='<div class="cm">';
-  h+='<div class="ct">'+esc(t.title)+'</div>';
+  h+='<div class="ct" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}" onblur="updateTaskTitle(\''+t.id+'\', this.textContent)">'+esc(t.title)+'</div>';
 
   /* Metadata row — clean label+value pairs, no emoji clutter */
   h+='<div class="cmt">';
@@ -780,8 +777,6 @@ function buildCard(t){
   h+='<div class="cbody" id="cb-'+t.id+'">';
 
   /* Context + description in a two-column layout when both present */
-  /* Editable meeting title — click to edit inline */
-  h+='<div class="mtitle-row"><span class="mtitle-label">MEETING</span><span class="mtitle-val" contenteditable="true" spellcheck="false" data-task-id="'+t.id+'" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}" onblur="updateMeetingTitle(\''+t.id+'\', this.textContent)">'+esc(t.meetingTitle||'Untitled meeting')+'</span><span class="mtitle-date">'+(t.meetingDate?esc(t.meetingDate):'')+'</span></div>';
   if(t.meetingContext||t.description){
     h+='<div class="body-top">';
     if(t.meetingContext){
@@ -845,13 +840,18 @@ function togCard(id){
   if(open){v.classList.add('xp');c.classList.add('xp');}else{v.classList.remove('xp');c.classList.remove('xp');}
 }
 
-function updateMeetingTitle(id, newTitle){
+function updateTaskTitle(id, newTitle){
   var t=null;for(var i=0;i<A.length;i++){if(A[i].id===id){t=A[i];break;}}
   if(!t)return;
   newTitle=(newTitle||'').trim();
-  if(!newTitle)newTitle='Untitled meeting';
-  if(t.meetingTitle===newTitle)return; /* no change */
-  t.meetingTitle=newTitle;
+  if(!newTitle){
+    /* Don't allow empty titles — restore the old one in the DOM */
+    var el=document.querySelector('#card-'+id+' .ct');
+    if(el)el.textContent=t.title;
+    return;
+  }
+  if(t.title===newTitle)return;
+  t.title=newTitle;
   markDirty();
   showToast('Saved');
 }
